@@ -1,18 +1,30 @@
-# .github/workflows/export-unpack.yml
-
-name: Export and Unpack Solution from PP-DEMO
+name: Export and Unpack Solution - Hawaiian Electric
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'src/**'          # prevent loop when this workflow commits src
-      - 'config/**'
+  workflow_dispatch:
+    inputs:
+      solution_name:
+        description: 'Solution name to export'
+        required: true
+        default: 'Hawaiian Electric'
+        type: string
+      export_managed:
+        description: 'Export as managed solution?'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+env:
+  SOLUTION_NAME: ${{ github.event.inputs.solution_name || 'Hawaiian Electric' }}
+  SOLUTION_FOLDER: src/HawaiianElectric
+  SOLUTION_ZIP: HawaiianElectric.zip
 
 jobs:
   export-and-unpack:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     name: Export solution from PP-DEMO and unpack to source
 
     steps:
@@ -22,63 +34,76 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Power Platform CLI
-        run: |
-          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+      - name: Install Power Platform Tools
+        uses: microsoft/powerplatform-actions/actions-install@v1
 
-      - name: Authenticate to PP-DEMO (offshore tenant)
-        run: |
-          pac auth create \
-            --environment ${{ secrets.PP_DEMO_URL }} \
-            --applicationId ${{ secrets.PP_DEMO_CLIENT_ID }} \
-            --clientSecret ${{ secrets.PP_DEMO_CLIENT_SECRET }} \
-            --tenant ${{ secrets.PP_DEMO_TENANT_ID }}
+      - name: Authenticate with Power Platform
+        uses: microsoft/powerplatform-actions/who-am-i@v1
+        with:
+          environment-url: ${{ secrets.PP_DEMO_URL }}
+          app-id: ${{ secrets.PP_DEMO_CLIENT_ID }}
+          client-secret: ${{ secrets.PP_DEMO_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.PP_DEMO_TENANT_ID }}
 
-      - name: Export solution (unmanaged)
-        run: |
-          pac solution export \
-            --name IAMAutomation \
-            --path ./IAMAutomation.zip \
-            --managed false \
-            --overwrite true
+      - name: Export solution from PP-DEMO
+        uses: microsoft/powerplatform-actions/export-solution@v1
+        with:
+          environment-url: ${{ secrets.PP_DEMO_URL }}
+          app-id: ${{ secrets.PP_DEMO_CLIENT_ID }}
+          client-secret: ${{ secrets.PP_DEMO_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.PP_DEMO_TENANT_ID }}
+          solution-name: ${{ env.SOLUTION_NAME }}
+          solution-output-file: ${{ env.SOLUTION_ZIP }}
+          managed: ${{ github.event.inputs.export_managed == 'true' }}
 
-      - name: Unpack solution to source
+      - name: Verify exported solution zip
+        shell: pwsh
         run: |
-          pac solution unpack \
-            --zipfile ./IAMAutomation.zip \
-            --folder ./src/IAMAutomation \
-            --packagetype Unmanaged \
-            --allowDelete true \
-            --allowWrite true
+          if (Test-Path -Path "${{ env.SOLUTION_ZIP }}") {
+            $size = (Get-Item "${{ env.SOLUTION_ZIP }}").Length / 1KB
+            Write-Host "✅ Solution exported: ${{ env.SOLUTION_ZIP }} ($([math]::Round($size, 1)) KB)"
+          } else {
+            Write-Host "❌ Export failed - zip not found"
+            exit 1
+          }
 
-      - name: Clean up zip
-        run: rm ./IAMAutomation.zip
+      - name: Unpack solution to src folder
+        uses: microsoft/powerplatform-actions/unpack-solution@v1
+        with:
+          solution-file: ${{ env.SOLUTION_ZIP }}
+          solution-folder: ${{ env.SOLUTION_FOLDER }}
+          solution-type: Unmanaged
+          overwrite-files: true
 
-      - name: Commit unpacked solution to repo
+      - name: Remove solution zip
+        shell: pwsh
         run: |
-          git config user.name "github-actions[bot]"
+          if (Test-Path "${{ env.SOLUTION_ZIP }}") {
+            Remove-Item "${{ env.SOLUTION_ZIP }}" -Force
+            Write-Host "🗑️ Cleaned up zip"
+          }
 
-      - name: Log Current Directory
+      - name: List unpacked contents
+        shell: pwsh
         run: |
-          Write-Host "Current directory:"
-          pwd
-  
-      - name: Log Directory Contents
-        run: |
-          Write-Host "Files in the current directory:"
-          Get-ChildItem -Path . -Recurse
-  
-      - name: Push ZIP File to GitHub
+          Write-Host "📂 Unpacked solution:"
+          Get-ChildItem -Path "${{ env.SOLUTION_FOLDER }}" -Recurse |
+            ForEach-Object { Write-Host $_.FullName.Replace((Get-Location).Path, '.') }
+
+      - name: Commit and push unpacked solution
+        shell: pwsh
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add exported_solution.zip
-          git commit -m "Automated export of Power Pages solution as ZIP"
-          git push -u origin $(git rev-parse --abbrev-ref HEAD)
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ./src/
-          git diff --staged --quiet || git commit -m "chore: export IAMAutomation from PP-DEMO [skip ci]"
-          git push
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ env.SOLUTION_FOLDER }}"
+          $changes = git status --porcelain
+          if ($changes) {
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm UTC"
+            git commit -m "chore: export Hawaiian Electric [$timestamp] [skip ci]"
+            git push origin ${{ github.ref_name }}
+            Write-Host "✅ Pushed to ${{ github.ref_name }}"
+          } else {
+            Write-Host "ℹ️ No changes - already up to date"
+          }
