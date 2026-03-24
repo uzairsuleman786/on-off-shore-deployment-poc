@@ -58,7 +58,27 @@ jobs:
       - name: Commit unpacked solution to repo
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Log Current Directory
+        run: |
+          Write-Host "Current directory:"
+          pwd
+  
+      - name: Log Directory Contents
+        run: |
+          Write-Host "Files in the current directory:"
+          Get-ChildItem -Path . -Recurse
+  
+      - name: Push ZIP File to GitHub
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add exported_solution.zip
+          git commit -m "Automated export of Power Pages solution as ZIP"
+          git push -u origin $(git rev-parse --abbrev-ref HEAD)
+            git config user.email "github-actions[bot]@users.noreply.github.com"
           git add ./src/
           git diff --staged --quiet || git commit -m "chore: export IAMAutomation from PP-DEMO [skip ci]"
           git push
