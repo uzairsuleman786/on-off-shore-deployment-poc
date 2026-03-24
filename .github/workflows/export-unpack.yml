@@ -8,14 +8,6 @@ on:
         required: true
         default: 'Hawaiian Electric'
         type: string
-      export_managed:
-        description: 'Export as managed solution?'
-        required: true
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
 
 env:
   SOLUTION_NAME: ${{ github.event.inputs.solution_name || 'Hawaiian Electric' }}
@@ -37,14 +29,6 @@ jobs:
       - name: Install Power Platform Tools
         uses: microsoft/powerplatform-actions/actions-install@v1
 
-      - name: Authenticate with Power Platform
-        uses: microsoft/powerplatform-actions/who-am-i@v1
-        with:
-          environment-url: ${{ secrets.PP_DEMO_URL }}
-          app-id: ${{ secrets.PP_DEMO_CLIENT_ID }}
-          client-secret: ${{ secrets.PP_DEMO_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.PP_DEMO_TENANT_ID }}
-
       - name: Export solution from PP-DEMO
         uses: microsoft/powerplatform-actions/export-solution@v1
         with:
@@ -54,7 +38,7 @@ jobs:
           tenant-id: ${{ secrets.PP_DEMO_TENANT_ID }}
           solution-name: ${{ env.SOLUTION_NAME }}
           solution-output-file: ${{ env.SOLUTION_ZIP }}
-          managed: ${{ github.event.inputs.export_managed == 'true' }}
+          managed: false
 
       - name: Verify exported solution zip
         shell: pwsh
@@ -83,13 +67,6 @@ jobs:
             Write-Host "🗑️ Cleaned up zip"
           }
 
-      - name: List unpacked contents
-        shell: pwsh
-        run: |
-          Write-Host "📂 Unpacked solution:"
-          Get-ChildItem -Path "${{ env.SOLUTION_FOLDER }}" -Recurse |
-            ForEach-Object { Write-Host $_.FullName.Replace((Get-Location).Path, '.') }
-
       - name: Commit and push unpacked solution
         shell: pwsh
         env:
@@ -105,5 +82,5 @@ jobs:
             git push origin ${{ github.ref_name }}
             Write-Host "✅ Pushed to ${{ github.ref_name }}"
           } else {
-            Write-Host "ℹ️ No changes - already up to date"
+            Write-Host "ℹ️ No changes - solution already up to date"
           }
