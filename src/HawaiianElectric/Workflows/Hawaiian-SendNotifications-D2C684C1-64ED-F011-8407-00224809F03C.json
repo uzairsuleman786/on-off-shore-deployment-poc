@@ -1,0 +1,147 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "he_sharedoffice365_f0734"
+        },
+        "runtimeSource": "invoker"
+      },
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "he_sharedcommondataserviceforapps_b1192"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Button",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "Status",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Declined",
+                  "x-ms-content-hint": "TEXT"
+                }
+              },
+              "required": [
+                "text"
+              ]
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "960f5520-28fc-4381-86d2-b3c3b37c916b"
+          }
+        }
+      },
+      "actions": {
+        "Switch": {
+          "type": "Switch",
+          "expression": "@triggerBody()['text']",
+          "default": {
+            "actions": {}
+          },
+          "cases": {
+            "Case": {
+              "actions": {},
+              "case": "Submitted"
+            },
+            "Case_2": {
+              "actions": {
+                "Send_an_email_(V2)": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "emailMessage/To": "admin@CRM743718.onmicrosoft.com",
+                      "emailMessage/Subject": "Action Required – Request | RID-1000",
+                      "emailMessage/Body": "<p>Dear <strong>Reviewer</strong>,<br>\nThe request <strong>RID-1000</strong> has been submitted and assigned to you for further action. Please process it as soon as possible and notify the customer of the outcome.<br>\n<br>\nBest regards,<br>\n@{outputs('Footer')}</p>",
+                      "emailMessage/Importance": "Normal"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "operationId": "SendEmailV2",
+                      "connectionName": "shared_office365"
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "f0fec9e6-345c-4b2b-8c7f-3d9ebf0fdc9a"
+                  }
+                }
+              },
+              "case": "Pending"
+            },
+            "Case_3": {
+              "actions": {},
+              "case": "Approved"
+            },
+            "Case_4": {
+              "actions": {},
+              "case": "Declined"
+            }
+          },
+          "runAfter": {
+            "Footer": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "79b02d36-9356-4d9b-b294-c6bc60794236"
+          }
+        },
+        "Footer": {
+          "type": "Compose",
+          "inputs": "<!-- Text -->\n  <div>\n    <div style=\"\n      font-size:28px;\n      font-weight:600;\n      color:#3b2a73;\n      line-height:1.1;\n    \">\n      Hawaiian\n    </div>\n    <div style=\"\n      font-size:28px;\n      font-weight:600;\n      color:#3b2a73;\n      line-height:1.1;\n    \">\n      Electric\n    </div>",
+          "runAfter": {
+            "List_rows": [
+              "SUCCEEDED"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9863df1a-c637-474f-b8ac-28f583e427e5"
+          }
+        },
+        "List_rows": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "entityName": "he_cidrequests"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "connectionName": "shared_commondataserviceforapps"
+            }
+          },
+          "runAfter": {}
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<EntityRelationships xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <EntityRelationship Name="business_unit_he_cidrequest" />
+  <EntityRelationship Name="he_cidrequest_SubmittedBy_contact" />
+  <EntityRelationship Name="lk_he_cidrequest_createdby" />
+  <EntityRelationship Name="lk_he_cidrequest_modifiedby" />
+  <EntityRelationship Name="msdyn_flow_actionapprovalmodelrelationship_systemuser" />
+  <EntityRelationship Name="msdyn_flow_awaitallactionmodelrelationship_user" />
+  <EntityRelationship Name="msdyn_flow_awaitallmodelrelationship_systemuser" />
+  <EntityRelationship Name="msdyn_flow_basicapprovalmodelrelationship_systemuser" />
+  <EntityRelationship Name="owner_he_cidrequest" />
+  <EntityRelationship Name="powerpagecomponent_webrole_systemuser" />
+  <EntityRelationship Name="team_he_cidrequest" />
+  <EntityRelationship Name="user_he_cidrequest" />
+</EntityRelationships>

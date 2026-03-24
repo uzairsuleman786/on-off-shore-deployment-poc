@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{3a4cfd0d-091f-4ba7-9a9a-b464de9a0c5c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="he_newcolumn" select="1" icon="1" preview="1">
+        <row name="result" id="he_cidrequestid">
+          <cell name="he_newcolumn" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="he_cidrequest">
+          <attribute name="he_cidrequestid" />
+          <attribute name="he_newcolumn" />
+          <attribute name="createdon" />
+          <order attribute="he_newcolumn" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive CID Requests" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>
