@@ -1,1 +1,26 @@
 
+// config/uat-deployment-settings.json
+{
+  "EnvironmentVariables": [
+    {
+      "SchemaName": "heco_ServiceNowBaseUrl",
+      "Value": "https://hecoDEV.service-now.com"
+    },
+    {
+      "SchemaName": "heco_SuccessFactorsUrl",
+      "Value": "https://api4.successfactors.com"
+    }
+  ],
+  "ConnectionReferences": [
+    {
+      "LogicalName": "heco_sharedcommondataserviceforapps_xxxx",
+      "ConnectionId": "HECO_UAT_DATAVERSE_CONNECTION_ID",
+      "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+    },
+    {
+      "LogicalName": "heco_sharedflowpush_xxxx",
+      "ConnectionId": "HECO_UAT_FLOW_CONNECTION_ID",
+      "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_flowpush"
+    }
+  ]
+}
