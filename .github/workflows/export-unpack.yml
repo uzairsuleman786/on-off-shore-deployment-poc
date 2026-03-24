@@ -1,0 +1,64 @@
+# .github/workflows/export-unpack.yml
+
+name: Export and Unpack Solution from PP-DEMO
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'src/**'          # prevent loop when this workflow commits src
+      - 'config/**'
+
+jobs:
+  export-and-unpack:
+    runs-on: ubuntu-latest
+    name: Export solution from PP-DEMO and unpack to source
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Power Platform CLI
+        run: |
+          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Authenticate to PP-DEMO (offshore tenant)
+        run: |
+          pac auth create \
+            --environment ${{ secrets.PP_DEMO_URL }} \
+            --applicationId ${{ secrets.PP_DEMO_CLIENT_ID }} \
+            --clientSecret ${{ secrets.PP_DEMO_CLIENT_SECRET }} \
+            --tenant ${{ secrets.PP_DEMO_TENANT_ID }}
+
+      - name: Export solution (unmanaged)
+        run: |
+          pac solution export \
+            --name IAMAutomation \
+            --path ./IAMAutomation.zip \
+            --managed false \
+            --overwrite true
+
+      - name: Unpack solution to source
+        run: |
+          pac solution unpack \
+            --zipfile ./IAMAutomation.zip \
+            --folder ./src/IAMAutomation \
+            --packagetype Unmanaged \
+            --allowDelete true \
+            --allowWrite true
+
+      - name: Clean up zip
+        run: rm ./IAMAutomation.zip
+
+      - name: Commit unpacked solution to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ./src/
+          git diff --staged --quiet || git commit -m "chore: export IAMAutomation from PP-DEMO [skip ci]"
+          git push
