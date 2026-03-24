@@ -1,0 +1,16 @@
+# Solution zip files — never commit these, only the unpacked source
+*.zip
+*.msapp
+
+# PAC CLI auth profiles — these contain credentials
+.pac/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if any tooling added later)
+node_modules/
+
+# VS Code
+.vscode/
