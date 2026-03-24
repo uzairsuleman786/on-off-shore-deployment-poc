@@ -1,139 +1,79 @@
-# .github/workflows/deploy-to-heco.yml
-
-name: Deploy Solution to HECO Environments
+name: Deploy Solution to HECO UAT
 
 on:
-  workflow_run:
-    workflows: ["Export and Unpack Solution from PP-DEMO"]
-    types:
-      - completed
-    branches:
-      - main
-
-  # Also allow manual trigger for hotfixes
   workflow_dispatch:
     inputs:
-      target_env:
-        description: 'Target environment'
+      solution_name:
+        description: 'Solution name to deploy'
         required: true
-        default: 'uat'
-        type: choice
-        options:
-          - uat
-          - prd
+        default: 'HawaiianElectric'
+        type: string
+
+env:
+  SOLUTION_NAME: ${{ github.event.inputs.solution_name || 'HawaiianElectric' }}
+  SOLUTION_FOLDER: src/HawaiianElectric
+  SOLUTION_ZIP: HawaiianElectric_unmanaged.zip
+
+permissions:
+  contents: read
 
 jobs:
-
-  # ── JOB 1: Pack the solution ──────────────────────────
-  pack-solution:
-    runs-on: ubuntu-latest
-    name: Pack solution from source
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Power Platform CLI
-        run: |
-          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-      - name: Pack solution (unmanaged)
-        run: |
-          pac solution pack \
-            --zipfile ./IAMAutomation_unmanaged.zip \
-            --folder ./src/IAMAutomation \
-            --packagetype Unmanaged
-
-      - name: Upload solution as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: IAMAutomation-unmanaged
-          path: ./IAMAutomation_unmanaged.zip
-          retention-days: 5
-
-  # ── JOB 2: Deploy to HECO_UAT (requires onshore approval) ──
   deploy-to-uat:
-    runs-on: ubuntu-latest
-    name: Deploy to HECO_UAT
-    needs: pack-solution
-    environment: heco-uat        # ← this is the approval gate in GitHub
+    runs-on: windows-latest
+    name: Pack and deploy to HECO_UAT
+    environment: heco-uat
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download solution artifact
-        uses: actions/download-artifact@v4
+      - name: Install Power Platform Tools
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: Pack solution from source
+        uses: microsoft/powerplatform-actions/pack-solution@v1
         with:
-          name: IAMAutomation-unmanaged
+          solution-folder: ${{ env.SOLUTION_FOLDER }}
+          solution-file: ${{ env.SOLUTION_ZIP }}
+          solution-type: Unmanaged
 
-      - name: Install Power Platform CLI
+      - name: Verify packed solution zip
+        shell: pwsh
         run: |
-          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-      - name: Authenticate to HECO tenant
-        run: |
-          pac auth create \
-            --environment ${{ secrets.HECO_UAT_URL }} \
-            --applicationId ${{ secrets.HECO_CLIENT_ID }} \
-            --clientSecret ${{ secrets.HECO_CLIENT_SECRET }} \
-            --tenant ${{ secrets.HECO_TENANT_ID }}
+          if (Test-Path -Path "${{ env.SOLUTION_ZIP }}") {
+            $size = (Get-Item "${{ env.SOLUTION_ZIP }}").Length / 1KB
+            Write-Host "✅ Solution packed: ${{ env.SOLUTION_ZIP }} ($([math]::Round($size, 1)) KB)"
+          } else {
+            Write-Host "❌ Pack failed - zip not found"
+            exit 1
+          }
 
       - name: Import solution to HECO_UAT
-        run: |
-          pac solution import \
-            --path ./IAMAutomation_unmanaged.zip \
-            --environment ${{ secrets.HECO_UAT_URL }} \
-            --deploymentSettingsFile ./config/uat-deployment-settings.json \
-            --activate-plugins true \
-            --force-overwrite true \
-            --publish-changes true
-
-      - name: Notify on success
-        run: echo "✅ IAMAutomation successfully deployed to HECO_UAT"
-
-  # ── JOB 3: Deploy to HECO_PRD (separate approval required) ──
-  deploy-to-prd:
-    runs-on: ubuntu-latest
-    name: Deploy to HECO_PRD
-    needs: deploy-to-uat
-    environment: heco-prd        # ← second approval gate, separate reviewer
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'prd'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download solution artifact
-        uses: actions/download-artifact@v4
+        uses: microsoft/powerplatform-actions/import-solution@v1
         with:
-          name: IAMAutomation-unmanaged
+          environment-url: ${{ secrets.HECO_UAT_URL }}
+          app-id: ${{ secrets.HECO_CLIENT_ID }}
+          client-secret: ${{ secrets.HECO_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.HECO_TENANT_ID }}
+          solution-file: ${{ env.SOLUTION_ZIP }}
+          force-overwrite: true
+          publish-changes: true
+          skip-dependency-check: false
+          deployment-settings-file: config/uat-deployment-settings.json
 
-      - name: Install Power Platform CLI
+      - name: Remove packed zip
+        shell: pwsh
         run: |
-          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          if (Test-Path "${{ env.SOLUTION_ZIP }}") {
+            Remove-Item "${{ env.SOLUTION_ZIP }}" -Force
+            Write-Host "🗑️ Cleaned up zip"
+          }
 
-      - name: Authenticate to HECO tenant (PRD)
+      - name: Confirm deployment
+        shell: pwsh
         run: |
-          pac auth create \
-            --environment ${{ secrets.HECO_PRD_URL }} \
-            --applicationId ${{ secrets.HECO_CLIENT_ID }} \
-            --clientSecret ${{ secrets.HECO_CLIENT_SECRET }} \
-            --tenant ${{ secrets.HECO_TENANT_ID }}
-
-      - name: Import solution to HECO_PRD
-        run: |
-          pac solution import \
-            --path ./IAMAutomation_unmanaged.zip \
-            --environment ${{ secrets.HECO_PRD_URL }} \
-            --deploymentSettingsFile ./config/prd-deployment-settings.json \
-            --activate-plugins true \
-            --force-overwrite true \
-            --publish-changes true
-
-      - name: Notify on success
-        run: echo "✅ IAMAutomation successfully deployed to HECO_PRD"
+          Write-Host "✅ HawaiianElectric deployed successfully to HECO_UAT"
+          Write-Host "🌐 Environment: ${{ secrets.HECO_UAT_URL }}"
+          Write-Host "📦 Solution: ${{ env.SOLUTION_NAME }}"
+          Write-Host "🕐 Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm UTC')"
