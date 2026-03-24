@@ -1,0 +1,139 @@
+# .github/workflows/deploy-to-heco.yml
+
+name: Deploy Solution to HECO Environments
+
+on:
+  workflow_run:
+    workflows: ["Export and Unpack Solution from PP-DEMO"]
+    types:
+      - completed
+    branches:
+      - main
+
+  # Also allow manual trigger for hotfixes
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Target environment'
+        required: true
+        default: 'uat'
+        type: choice
+        options:
+          - uat
+          - prd
+
+jobs:
+
+  # ── JOB 1: Pack the solution ──────────────────────────
+  pack-solution:
+    runs-on: ubuntu-latest
+    name: Pack solution from source
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Power Platform CLI
+        run: |
+          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Pack solution (unmanaged)
+        run: |
+          pac solution pack \
+            --zipfile ./IAMAutomation_unmanaged.zip \
+            --folder ./src/IAMAutomation \
+            --packagetype Unmanaged
+
+      - name: Upload solution as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IAMAutomation-unmanaged
+          path: ./IAMAutomation_unmanaged.zip
+          retention-days: 5
+
+  # ── JOB 2: Deploy to HECO_UAT (requires onshore approval) ──
+  deploy-to-uat:
+    runs-on: ubuntu-latest
+    name: Deploy to HECO_UAT
+    needs: pack-solution
+    environment: heco-uat        # ← this is the approval gate in GitHub
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download solution artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: IAMAutomation-unmanaged
+
+      - name: Install Power Platform CLI
+        run: |
+          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Authenticate to HECO tenant
+        run: |
+          pac auth create \
+            --environment ${{ secrets.HECO_UAT_URL }} \
+            --applicationId ${{ secrets.HECO_CLIENT_ID }} \
+            --clientSecret ${{ secrets.HECO_CLIENT_SECRET }} \
+            --tenant ${{ secrets.HECO_TENANT_ID }}
+
+      - name: Import solution to HECO_UAT
+        run: |
+          pac solution import \
+            --path ./IAMAutomation_unmanaged.zip \
+            --environment ${{ secrets.HECO_UAT_URL }} \
+            --deploymentSettingsFile ./config/uat-deployment-settings.json \
+            --activate-plugins true \
+            --force-overwrite true \
+            --publish-changes true
+
+      - name: Notify on success
+        run: echo "✅ IAMAutomation successfully deployed to HECO_UAT"
+
+  # ── JOB 3: Deploy to HECO_PRD (separate approval required) ──
+  deploy-to-prd:
+    runs-on: ubuntu-latest
+    name: Deploy to HECO_PRD
+    needs: deploy-to-uat
+    environment: heco-prd        # ← second approval gate, separate reviewer
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'prd'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download solution artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: IAMAutomation-unmanaged
+
+      - name: Install Power Platform CLI
+        run: |
+          dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Authenticate to HECO tenant (PRD)
+        run: |
+          pac auth create \
+            --environment ${{ secrets.HECO_PRD_URL }} \
+            --applicationId ${{ secrets.HECO_CLIENT_ID }} \
+            --clientSecret ${{ secrets.HECO_CLIENT_SECRET }} \
+            --tenant ${{ secrets.HECO_TENANT_ID }}
+
+      - name: Import solution to HECO_PRD
+        run: |
+          pac solution import \
+            --path ./IAMAutomation_unmanaged.zip \
+            --environment ${{ secrets.HECO_PRD_URL }} \
+            --deploymentSettingsFile ./config/prd-deployment-settings.json \
+            --activate-plugins true \
+            --force-overwrite true \
+            --publish-changes true
+
+      - name: Notify on success
+        run: echo "✅ IAMAutomation successfully deployed to HECO_PRD"
