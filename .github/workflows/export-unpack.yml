@@ -1,4 +1,4 @@
-name: Export and Unpack Solution - HawaiianElectric
+name: Export and Unpack Solution - Hawaiian Electric
 
 on:
   workflow_dispatch:
@@ -6,13 +6,16 @@ on:
       solution_name:
         description: 'Solution name to export'
         required: true
-        default: 'HawaiianElectric'
+        default: 'Hawaiian Electric'
         type: string
 
 env:
-  SOLUTION_NAME: ${{ github.event.inputs.solution_name || 'HawaiianElectric' }}
+  SOLUTION_NAME: ${{ github.event.inputs.solution_name || 'Hawaiian Electric' }}
   SOLUTION_FOLDER: src/HawaiianElectric
   SOLUTION_ZIP: HawaiianElectric.zip
+
+permissions:
+  contents: write
 
 jobs:
   export-and-unpack:
@@ -69,8 +72,6 @@ jobs:
 
       - name: Commit and push unpacked solution
         shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -78,8 +79,8 @@ jobs:
           $changes = git status --porcelain
           if ($changes) {
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm UTC"
-            git commit -m "chore: export HawaiianElectric [$timestamp] [skip ci]"
-            git push origin ${{ github.ref_name }}
+            git commit -m "chore: export Hawaiian Electric [$timestamp] [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
             Write-Host "✅ Pushed to ${{ github.ref_name }}"
           } else {
             Write-Host "ℹ️ No changes - solution already up to date"
