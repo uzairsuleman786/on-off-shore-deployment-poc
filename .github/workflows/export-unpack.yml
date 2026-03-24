@@ -1,4 +1,4 @@
-name: Export and Unpack Solution - Hawaiian Electric
+name: Export and Unpack Solution - HawaiianElectric
 
 on:
   workflow_dispatch:
@@ -6,11 +6,11 @@ on:
       solution_name:
         description: 'Solution name to export'
         required: true
-        default: 'Hawaiian Electric'
+        default: 'HawaiianElectric'
         type: string
 
 env:
-  SOLUTION_NAME: ${{ github.event.inputs.solution_name || 'Hawaiian Electric' }}
+  SOLUTION_NAME: ${{ github.event.inputs.solution_name || 'HawaiianElectric' }}
   SOLUTION_FOLDER: src/HawaiianElectric
   SOLUTION_ZIP: HawaiianElectric.zip
 
@@ -78,7 +78,7 @@ jobs:
           $changes = git status --porcelain
           if ($changes) {
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm UTC"
-            git commit -m "chore: export Hawaiian Electric [$timestamp] [skip ci]"
+            git commit -m "chore: export HawaiianElectric [$timestamp] [skip ci]"
             git push origin ${{ github.ref_name }}
             Write-Host "✅ Pushed to ${{ github.ref_name }}"
           } else {
