@@ -3,23 +3,19 @@
 {
   "EnvironmentVariables": [
     {
-      "SchemaName": "heco_ServiceNowBaseUrl",
-      "Value": "https://hecoDEV.service-now.com"
-    },
-    {
-      "SchemaName": "heco_SuccessFactorsUrl",
-      "Value": "https://api4.successfactors.com"
+      "SchemaName": "he_isProduction",
+      "Value": "Yes"
     }
   ],
   "ConnectionReferences": [
     {
-      "LogicalName": "heco_sharedcommondataserviceforapps_xxxx",
-      "ConnectionId": "HECO_UAT_DATAVERSE_CONNECTION_ID",
+      "LogicalName": "he_sharedcommondataserviceforapps_b1192",
+      "ConnectionId": "0578312e5cc549b49b022b385ab129c0",
       "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
     },
     {
-      "LogicalName": "heco_sharedflowpush_xxxx",
-      "ConnectionId": "HECO_UAT_FLOW_CONNECTION_ID",
+      "LogicalName": "he_sharedoffice365_f0734",
+      "ConnectionId": "f2fb49e221e1450ca5b72292a6212d06",
       "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_flowpush"
     }
   ]
